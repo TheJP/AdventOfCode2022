@@ -48,4 +48,27 @@ int SumSizes(Folder folder)
     return size + folder.Children.Values.Select(n => n is Folder f ? SumSizes(f) : 0).Sum();
 }
 
-Console.WriteLine("{0}", SumSizes(root));
+Console.WriteLine("Task 1: {0}", SumSizes(root));
+
+// Task 2
+const int TotalSpace = 70_000_000;
+const int RequiredSpace = 30_000_000;
+
+var usedSpace = root.Size ?? throw new InvalidOperationException();
+var freeSpace = TotalSpace - usedSpace;
+var deleteAtLeast = RequiredSpace - freeSpace;
+
+var sizes = new List<int>();
+void CollectSizes(Folder folder)
+{
+    int size = folder.Size ?? throw new InvalidOperationException();
+    sizes.Add(size);
+    foreach (var node in folder.Children.Values)
+    {
+        if (node is Folder f) CollectSizes(f);
+    }
+}
+CollectSizes(root);
+
+sizes.Sort();
+Console.WriteLine("Task 2: {0}", sizes.Where(s => s >= deleteAtLeast).First());
