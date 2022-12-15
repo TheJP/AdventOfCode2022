@@ -1,0 +1,55 @@
+using System.Text.RegularExpressions;
+
+var input = File.ReadLines(Environment.GetCommandLineArgs()[^1]);
+
+// Sensor at x=2, y=18: closest beacon is at x=-2, y=15
+var regex = new Regex("Sensor at x=(-?[0-9]+), y=(-?[0-9]+): closest beacon is at x=(-?[0-9]+), y=(-?[0-9]+)");
+
+const int MaxSearch = 20;
+var search = new bool[MaxSearch + 1, MaxSearch + 1];
+
+var beaconsX = new List<int>();
+foreach (var line in input)
+{
+    var match = regex.Match(line);
+    if (!match.Success) throw new InvalidOperationException();
+
+    var sensor = (x: int.Parse(match.Groups[1].Value), y: int.Parse(match.Groups[2].Value));
+    var beacon = (x: int.Parse(match.Groups[3].Value), y: int.Parse(match.Groups[4].Value));
+
+    if (beacon.x >= 0 && beacon.x <= MaxSearch &&
+        beacon.y >= 0 && beacon.y <= MaxSearch) { search[beacon.y, beacon.x] = true; }
+
+    // Console.WriteLine("{0}/{1} {2}/{3}", sensor.x, sensor.y, beacon.x, beacon.y);
+
+    var distance = Math.Abs(sensor.x - beacon.x) + Math.Abs(sensor.y - beacon.y);
+
+    for (int targetRow = 0; targetRow <= MaxSearch; ++targetRow)
+    {
+        // Console.WriteLine("{0}", distance);
+        var d2 = distance - Math.Abs(sensor.y - targetRow);
+        // Console.WriteLine("{0}", d2);
+        // Console.WriteLine();
+
+        if (d2 < 0) continue;
+
+        for (int x = Math.Max(0, sensor.x - d2); x <= Math.Min(MaxSearch, sensor.x + d2); ++x)
+        {
+            int rx = x;
+            search[targetRow, rx] = true;
+        }
+    }
+}
+
+// for (int x = -4; x < 27; ++x) {
+//     Console.Write("{0}", reached[x - Negative] ? '#' : '.');
+// }
+// Console.WriteLine();
+
+for (var y = 0; y <= MaxSearch; ++y)
+{
+    for (var x = 0; x <= MaxSearch; ++x)
+    {
+        if (!search[y, x]) Console.WriteLine("{0}", 4_000_000L * (long)x + (long)y);
+    }
+}
