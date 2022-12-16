@@ -1,0 +1,56 @@
+
+using System.Text.RegularExpressions;
+var regex = new Regex("Valve ([A-Z]+) has flow rate=([0-9]+); tunnels? leads? to valves? ([A-Z, ]+)");
+
+var input = File.ReadLines(Environment.GetCommandLineArgs()[1]);
+
+const int limit = 30;
+const string start = "AA";
+
+var graph = new Dictionary<string, (int flow, string[] next)>();
+
+foreach (var line in input)
+{
+    var match = regex.Match(line);
+    if (!match.Success) throw new InvalidOperationException();
+
+    var node = match.Groups[1].Value;
+    var flow = int.Parse(match.Groups[2].Value);
+    var next = match.Groups[3].Value.Trim().Split(", ");
+
+    graph.Add(node, (flow, next));
+}
+
+var opened = new HashSet<string>();
+
+int FindMax(int timeLeft, string node)
+{
+    if (timeLeft <= 0) return 0;
+
+    var entry = graph[node];
+
+    int best = 0;
+    foreach (var next in entry.next)
+    {
+        var no = FindMax(timeLeft - 1, next);
+        best = Math.Max(best, no);
+    }
+
+    if (opened.Contains(node) || entry.flow <= 0 || timeLeft <= 1) return best;
+    opened.Add(node);
+    var own = (timeLeft - 1) * entry.flow;
+
+    foreach (var next in entry.next)
+    {
+        var yes = FindMax(timeLeft - 2, next);
+        best = Math.Max(best, yes + own);
+    }
+
+    opened.Remove(node);
+
+    return best;
+}
+
+var score = FindMax(limit, start);
+
+Console.WriteLine($"{score}");

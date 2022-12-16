@@ -1,0 +1,72 @@
+
+using System.Text.RegularExpressions;
+var regex = new Regex("Valve ([A-Z]+) has flow rate=([0-9]+); tunnels? leads? to valves? ([A-Z, ]+)");
+
+var input = File.ReadLines(Environment.GetCommandLineArgs()[1]);
+
+const int limit = 30;
+const string start = "AA";
+
+var graph = new Dictionary<string, (int flow, string[] next)>();
+
+foreach (var line in input)
+{
+    var match = regex.Match(line);
+    if (!match.Success) throw new InvalidOperationException();
+
+    var valve = match.Groups[1].Value;
+    var flow = int.Parse(match.Groups[2].Value);
+    var next = match.Groups[3].Value.Trim().Split(", ");
+
+    graph.Add(valve, (flow, next));
+}
+
+var opened = new HashSet<string>();
+int timeLeft = limit;
+var node = start;
+
+int score = 0;
+
+while (timeLeft > 0)
+{
+    int best = 0;
+    int bestTime = 0;
+    string bestOpen = "";
+    var visited = new HashSet<string>();
+    var bfs = new Queue<(int depth, string node)>();
+    bfs.Enqueue((0, node));
+
+    while (bfs.Count > 0)
+    {
+        var current = bfs.Dequeue();
+
+        if (visited.Contains(current.node)) continue;
+        visited.Add(current.node);
+
+        if (!opened.Contains(current.node))
+        {
+            var newTime = timeLeft - current.depth - 1;
+            var newFlow = newTime * graph[current.node].flow;
+            if (best < newFlow)
+            {
+                best = newFlow;
+                bestTime = newTime;
+                bestOpen = current.node;
+            }
+            // Console.WriteLine($"{current.node} Time {newTime} Flow {newFlow}");
+        }
+
+        foreach (var next in graph[current.node].next)
+        {
+            if (!visited.Contains(next)) bfs.Enqueue((current.depth + 1, next));
+        }
+    }
+
+    score += best;
+    timeLeft = bestTime;
+    opened.Add(bestOpen);
+    node = bestOpen;
+    Console.WriteLine($"Open {bestOpen}, Time: {timeLeft}, Add: {best}");
+}
+
+Console.WriteLine($"{score}");
