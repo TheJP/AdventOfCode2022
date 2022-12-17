@@ -1,0 +1,166 @@
+var input = File.ReadAllLines(Environment.GetCommandLineArgs()[1])[0];
+
+const int width = 7;
+
+// ####
+//
+// .#.
+// ###
+// .#.
+//
+// ..#
+// ..#
+// ###
+//
+// #
+// #
+// #
+// #
+//
+// ##
+// ##
+
+var shapes = new string[][]
+{
+    new[]{ "####" },
+    new[]
+    {
+        ".#.",
+        "###",
+        ".#.",
+    },
+    new[]
+    {
+        "..#",
+        "..#",
+        "###",
+    },
+    new[]{ "#","#","#","#" },
+    new[]
+    {
+        "##",
+        "##",
+    }
+}.Select(shape => shape.Select(row => row.Select(c => c == '#').ToArray()).ToArray()).ToArray();
+
+// Each rock appears so that its left edge is two units away from the left wall and
+// its bottom edge is three units above the highest rock in the room (or the floor, if there isn't one).
+
+// const long loop = 2022;
+const long loop = 1_000_000_000_000;
+const int bufferHeight = 4 + 4;
+long highest = 0;
+int inputPosition = 0;
+
+int currentShape = -1;
+int x = 0;
+long y = 0;
+long removedY = 0;
+
+List<bool[]> tetris = new();
+for (int i = 0; i < bufferHeight; ++i) tetris.Add(new bool[width]);
+
+void SpawnNextShape()
+{
+    currentShape = (currentShape + 1) % shapes.Length;
+    x = 2;
+    y = highest + 3;
+}
+
+bool Collision()
+{
+    if (x < 0 || x + shapes[currentShape][0].Length > width || y < 0) return true;
+    int realY = (int)(y - removedY);
+    return currentShape switch
+    {
+        0 => tetris[realY][x] || tetris[realY][x + 1] || tetris[realY][x + 2] || tetris[realY][x + 3],
+        1 =>
+            tetris[realY][x + 1] ||
+            tetris[realY + 1][x] || tetris[realY + 1][x + 1] || tetris[realY + 1][x + 2] ||
+            tetris[realY + 2][x + 1],
+        2 =>
+            tetris[realY][x] || tetris[realY][x + 1] || tetris[realY][x + 2] ||
+            tetris[realY + 1][x + 2] ||
+            tetris[realY + 2][x + 2],
+        3 =>
+            tetris[realY][x] ||
+            tetris[realY + 1][x] ||
+            tetris[realY + 2][x] ||
+            tetris[realY + 3][x],
+        4 =>
+            tetris[realY][x] || tetris[realY][x + 1] ||
+            tetris[realY + 1][x] || tetris[realY + 1][x + 1],
+        _ => throw new InvalidOperationException(),
+    };
+}
+
+void SimulateShape()
+{
+    while (!Collision())
+    {
+        x += input[inputPosition] == '<' ? -1 : 1;
+        if (Collision()) x -= input[inputPosition] == '<' ? -1 : 1;
+        inputPosition = (inputPosition + 1) % input.Length;
+
+        --y;
+    }
+    ++y;
+    highest = Math.Max(highest, y + shapes[currentShape].Length);
+    while (tetris.Count < highest + bufferHeight) tetris.Add(new bool[width]);
+
+    int prune = -1;
+    for (long py = y; py < y + shapes[currentShape].Length; ++py)
+    {
+        int realY = (int)(py - removedY);
+        for (int px = x; px < x + shapes[currentShape][0].Length; ++px)
+        {
+            if (shapes[currentShape][shapes[currentShape].Length - (int)(py - y) - 1][px - x])
+            {
+                tetris[realY][px] = true;
+            }
+        }
+
+        int count = 0;
+        for (int tx = 0; tx < width; ++tx)
+        {
+            if (tetris[realY][tx]) ++count;
+        }
+        if (count == width) prune = realY;
+    }
+
+    if (prune > 0 && tetris.Count > 1_000_000)
+    {
+        // PrintTetris();
+        tetris = tetris.Skip(prune).ToList();
+        removedY += prune;
+        // PrintTetris();
+    }
+}
+
+void PrintTetris()
+{
+    for (long ty = highest; ty >= 0; --ty)
+    {
+        int realY = (int)(ty - removedY);
+        if (realY < 0) break;
+
+        for (int tx = 0; tx < width; ++tx)
+        {
+            Console.Write(tetris[realY][tx] ? '#' : '.');
+        }
+        Console.WriteLine();
+        if (highest - ty + 1 >= 20) break;
+    }
+    Console.WriteLine();
+}
+
+
+for (long i = 0; i < loop; ++i)
+{
+    if (i % 1_000_000L == 0) Console.WriteLine(i);
+    SpawnNextShape();
+    SimulateShape();
+    // PrintTetris();
+}
+
+Console.WriteLine(highest);

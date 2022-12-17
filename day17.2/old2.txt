@@ -1,0 +1,161 @@
+var input = File.ReadAllLines(Environment.GetCommandLineArgs()[1])[0];
+
+const int width = 7;
+
+// ####
+//
+// .#.
+// ###
+// .#.
+//
+// ..#
+// ..#
+// ###
+//
+// #
+// #
+// #
+// #
+//
+// ##
+// ##
+
+var shapes = new string[][]
+{
+    new[]{ "####" },
+    new[]
+    {
+        ".#.",
+        "###",
+        ".#.",
+    },
+    new[]
+    {
+        "..#",
+        "..#",
+        "###",
+    },
+    new[]{ "#","#","#","#" },
+    new[]
+    {
+        "##",
+        "##",
+    }
+}.Select(shape => shape.Select(row => row.Select(c => c == '#').ToArray()).ToArray()).ToArray();
+
+// Each rock appears so that its left edge is two units away from the left wall and
+// its bottom edge is three units above the highest rock in the room (or the floor, if there isn't one).
+
+const int loop = 2022;
+// const long loop = 1_000_000_000_000;
+const int bufferHeight = 4 + 4;
+int highest = 0;
+int inputPosition = 0;
+
+int currentShape = -1;
+int x = 0;
+int y = 0;
+
+List<bool[]> tetris = new();
+for (int i = 0; i < bufferHeight; ++i) tetris.Add(new bool[width]);
+
+void SpawnNextShape()
+{
+    currentShape = (currentShape + 1) % shapes.Length;
+    x = 2;
+    y = highest + 3;
+}
+
+bool Collision()
+{
+    if (x < 0 || x + shapes[currentShape][0].Length > width || y < 0) return true;
+
+    for (int py = y; py < y + shapes[currentShape].Length; ++py)
+    {
+        for (int px = x; px < x + shapes[currentShape][0].Length; ++px)
+        {
+            // Console.WriteLine($"{currentShape} {shapes[currentShape].Length - (py - y) - 1} {px - x} && tetris[{py}][{px}]");
+            if (shapes[currentShape][shapes[currentShape].Length - (py - y) - 1][px - x] &&
+                tetris[py][px])
+                return true;
+        }
+    }
+
+    return false;
+}
+
+void SimulateShape()
+{
+    while (!Collision())
+    {
+        x += input[inputPosition] == '<' ? -1 : 1;
+        if (Collision()) x -= input[inputPosition] == '<' ? -1 : 1;
+        inputPosition = (inputPosition + 1) % input.Length;
+
+        --y;
+    }
+    ++y;
+    highest = Math.Max(highest, y + shapes[currentShape].Length);
+    while (tetris.Count < highest + bufferHeight) tetris.Add(new bool[width]);
+
+    for (int py = y; py < y + shapes[currentShape].Length; ++py)
+    {
+        for (int px = x; px < x + shapes[currentShape][0].Length; ++px)
+        {
+            if (shapes[currentShape][shapes[currentShape].Length - (py - y) - 1][px - x])
+            {
+                tetris[py][px] = true;
+            }
+        }
+    }
+}
+
+void PrintTetris()
+{
+    for (int ty = highest; ty >= 0; --ty)
+    {
+        for (int tx = 0; tx < width; ++tx)
+        {
+            Console.Write(tetris[ty][tx] ? '#' : '.');
+        }
+        Console.WriteLine();
+        if (highest - ty + 1 >= 20) break;
+    }
+    Console.WriteLine();
+}
+
+int repeat = shapes.Length * input.Length;
+
+for (int i = 0; i < repeat; ++i)
+{
+    SpawnNextShape();
+    SimulateShape();
+}
+
+long highestBase = highest;
+
+for (int i = 0; i < repeat; ++i)
+{
+    SpawnNextShape();
+    SimulateShape();
+}
+
+long repeatable = highest - highestBase;
+
+Console.WriteLine($"{highestBase} {repeatable} {repeat}");
+
+long target = 1_000_000_000_000L;
+
+var repetitions = target / repeat;
+var finish = repetitions * repeat;
+
+Console.WriteLine($"{target - finish}");
+
+for (long i = finish; i < target; ++i)
+{
+    SpawnNextShape();
+    SimulateShape();
+}
+
+Console.WriteLine($"{highestBase} + {repeatable * (repetitions - 1)} + {(highest - repeatable - highestBase)}");
+Console.WriteLine(highestBase + repeatable * (repetitions - 1) + (highest - repeatable - highestBase));
