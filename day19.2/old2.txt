@@ -1,0 +1,143 @@
+using System.Text.RegularExpressions;
+
+var input = File.ReadLines(Environment.GetCommandLineArgs()[1]);
+
+// Blueprint 1: Each ore robot costs 4 ore. Each clay robot costs 2 ore.
+// Each obsidian robot costs 3 ore and 14 clay.
+// Each geode robot costs 2 ore and 7 obsidian.
+var regex = new Regex("Blueprint [0-9]+: Each ore robot costs ([0-9]+) ore. Each clay robot costs ([0-9]+) ore. Each obsidian robot costs ([0-9]+) ore and ([0-9]+) clay. Each geode robot costs ([0-9]+) ore and ([0-9]+) obsidian.");
+
+int score = 1;
+int blueprint = 1;
+foreach (var line in input.Take(3))
+{
+    var match = regex.Match(line);
+    if (!match.Success) throw new InvalidOperationException(line);
+
+    var oreForOre = int.Parse(match.Groups[1].Value);
+    var oreForClay = int.Parse(match.Groups[2].Value);
+    var oreForObsidian = int.Parse(match.Groups[3].Value);
+    var clayForObsidian = int.Parse(match.Groups[4].Value);
+    var oreForGeode = int.Parse(match.Groups[5].Value);
+    var obsidianForGeode = int.Parse(match.Groups[6].Value);
+
+    (int ore, int clay, int obsidian, int geode) ResourcesBefore(Robot[] r, int minute)
+    {
+        var (ore, clay, obsidian, geode) = (0, 0, 0, 0);
+        for (int i = 0; i < minute; ++i)
+        {
+            switch (r[i])
+            {
+                case Robot.None:
+                    break;
+                case Robot.Ore:
+                    ore += (minute - i - 1); // built at minute i, mined in minutes i+1..minute-1
+                    if (i > 0) ore -= oreForOre;
+                    break;
+                case Robot.Clay:
+                    clay += (minute - i - 1);
+                    ore -= oreForClay;
+                    break;
+                case Robot.Obsidian:
+                    obsidian += (minute - i - 1);
+                    ore -= oreForObsidian;
+                    clay -= clayForObsidian;
+                    break;
+                case Robot.Geode:
+                    geode += (minute - i - 1);
+                    ore -= oreForGeode;
+                    obsidian -= obsidianForGeode;
+                    break;
+            }
+        }
+
+        return (ore, clay, obsidian, geode);
+    }
+
+    // var robots = new Robot[33];
+    // robots[0] = Robot.Ore;
+
+    // int maxGeodes = 0;
+    // while (true) {
+    // var resources = ResourcesBefore(robots, 33);
+    // if (resources.obsidian < 0) {
+    //     int obsidianIndex = robots.Length + resources.obsidian - 1;
+    //     robots[obsidianIndex] = Robot.Obsidian;
+    // }
+    // }
+
+    const int MaxMinutes = 32;
+    var memoization = new Dictionary<(int ore, int clay, int obsidian, int geode), Robot[]>();
+
+    Robot[] Solve((int ore, int clay, int obsidian, int geode) required)
+    {
+        if (memoization.TryGetValue(required, out var result)) return result;
+
+        int bestMinutes = int.MaxValue;
+        Robot[]? bestLayout = null;
+
+        // Run 1 geode miner for i days.
+        for (int i = 1; i <= required.geode; ++i) {
+            var solution = Solve((required.ore + oreForGeode, required.clay, required.obsidian + obsidianForGeode, required.geode - i));
+            if (solution.Length + 1 + i < bestMinutes) {
+                bestMinutes = solution.Length + 1 + i;
+                bestLayout = new Robot[bestMinutes];
+                solution.CopyTo(bestLayout, 0);
+                bestLayout[solution.Length] = Robot.Geode;
+            }
+        }
+
+        // Run 1 obsidian miner for i days.
+        for (int i = 1; i <= required.obsidian; ++i) {
+            var solution = Solve((required.ore + oreForObsidian, required.clay + clayForObsidian, required.obsidian - i, required.geode));
+            if (solution.Length + 1 + i < bestMinutes) {
+                bestMinutes = solution.Length + 1 + i;
+                bestLayout = new Robot[bestMinutes];
+                solution.CopyTo(bestLayout, 0);
+                bestLayout[solution.Length] = Robot.Obsidian;
+            }
+        }
+
+        // Run 1 clay miner for i days.
+        for (int i = 1; i <= required.clay; ++i) {
+            var solution = Solve((required.ore + oreForClay, required.clay - i, required.obsidian, required.geode));
+            if (solution.Length + 1 + i < bestMinutes) {
+                bestMinutes = solution.Length + 1 + i;
+                bestLayout = new Robot[bestMinutes];
+                solution.CopyTo(bestLayout, 0);
+                bestLayout[solution.Length] = Robot.Clay;
+            }
+        }
+
+        // Run 1 ore miner for i days.
+        for (int i = 1; i <= required.ore; ++i) {
+            var solution = Solve((required.ore + oreForOre - i, required.clay, required.obsidian, required.geode));
+            if (solution.Length + 1 + i < bestMinutes) {
+                bestMinutes = solution.Length + 1 + i;
+                bestLayout = new Robot[bestMinutes];
+                solution.CopyTo(bestLayout, 0);
+                bestLayout[solution.Length] = Robot.Clay;
+            }
+        }
+
+        return (bestMinutes, bestLayout);
+    }
+
+    int geodes = 0;
+    for (int i = 1; i < 200; ++i)
+    {
+        var result = Solve((0, 0, 0, i));
+        if (result.Length > MaxMinutes)
+        {
+            geodes = i - 1;
+            break;
+        }
+    }
+
+    Console.WriteLine("Geodes: {0}", geodes);
+
+    score *= geodes;
+    ++blueprint;
+}
+
+Console.WriteLine(score);

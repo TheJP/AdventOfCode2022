@@ -1,0 +1,84 @@
+using System.Text.RegularExpressions;
+
+var input = File.ReadLines(Environment.GetCommandLineArgs()[1]);
+
+// Blueprint 1: Each ore robot costs 4 ore. Each clay robot costs 2 ore.
+// Each obsidian robot costs 3 ore and 14 clay.
+// Each geode robot costs 2 ore and 7 obsidian.
+var regex = new Regex("Blueprint [0-9]+: Each ore robot costs ([0-9]+) ore. Each clay robot costs ([0-9]+) ore. Each obsidian robot costs ([0-9]+) ore and ([0-9]+) clay. Each geode robot costs ([0-9]+) ore and ([0-9]+) obsidian.");
+
+int score = 1;
+int blueprint = 1;
+foreach (var line in input.Take(3))
+{
+    Console.WriteLine($"Blueprint: {blueprint}");
+
+    var match = regex.Match(line);
+    if (!match.Success) throw new InvalidOperationException(line);
+
+    var oreForOre = int.Parse(match.Groups[1].Value);
+    var oreForClay = int.Parse(match.Groups[2].Value);
+    var oreForObsidian = int.Parse(match.Groups[3].Value);
+    var clayForObsidian = int.Parse(match.Groups[4].Value);
+    var oreForGeode = int.Parse(match.Groups[5].Value);
+    var obsidianForGeode = int.Parse(match.Groups[6].Value);
+
+    var realities = new HashSet<State>();
+    realities.Add(new State(new Res(0, 0, 0, 0), new Res(1, 0, 0, 0)));
+
+    for (int day = 1; day <= 32; ++day)
+    {
+        Console.WriteLine($"Realities on day {day}: {realities.Count}");
+        var oldRealities = realities;
+        realities = new();
+        foreach (var reality in oldRealities)
+        {
+            var next = new State(
+                new Res(
+                    reality.store.ore + reality.robots.ore,
+                    reality.store.clay + reality.robots.clay,
+                    reality.store.obsidian + reality.robots.obsidian,
+                    reality.store.geode + reality.robots.geode
+                ),
+                reality.robots
+            );
+            realities.Add(next);
+            if (reality.store.ore >= oreForOre)
+            {
+                realities.Add(new State(
+                    new Res(next.store.ore - oreForOre, next.store.clay, next.store.obsidian, next.store.geode),
+                    new Res(next.robots.ore + 1, next.robots.clay, next.robots.obsidian, next.robots.geode)
+                ));
+            }
+            if (reality.store.ore >= oreForClay)
+            {
+                realities.Add(new State(
+                    new Res(next.store.ore - oreForClay, next.store.clay, next.store.obsidian, next.store.geode),
+                    new Res(next.robots.ore, next.robots.clay + 1, next.robots.obsidian, next.robots.geode)
+                ));
+            }
+            if (reality.store.ore >= oreForObsidian && reality.store.clay >= clayForObsidian)
+            {
+                realities.Add(new State(
+                    new Res(next.store.ore - oreForObsidian, next.store.clay - clayForObsidian, next.store.obsidian, next.store.geode),
+                    new Res(next.robots.ore, next.robots.clay, next.robots.obsidian + 1, next.robots.geode)
+                ));
+            }
+            if (reality.store.ore >= oreForGeode && reality.store.obsidian >= obsidianForGeode)
+            {
+                realities.Add(new State(
+                    new Res(next.store.ore - oreForGeode, next.store.clay, next.store.obsidian - obsidianForGeode, next.store.geode),
+                    new Res(next.robots.ore, next.robots.clay, next.robots.obsidian, next.robots.geode + 1)
+                ));
+            }
+        }
+    }
+
+    int geodes = realities.Select(r => r.store.geode).Max();
+    Console.WriteLine("Geodes: {geodes}");
+
+    score *= geodes;
+    ++blueprint;
+}
+
+Console.WriteLine(score);
