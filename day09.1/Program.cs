@@ -34,16 +34,16 @@ foreach (var line in input)
         var v = head.Y - tail.Y;
         if (Math.Abs(h) > 0 && Math.Abs(v) > 0 && Math.Abs(h) + Math.Abs(v) == 3)
         {
-            tail.X += h / Math.Abs(h);
-            tail.Y += v / Math.Abs(v);
+            tail.X += Math.Sign(h);
+            tail.Y += Math.Sign(v);
         }
         else if (Math.Abs(h) > 1)
         {
-            tail.X += h / Math.Abs(h);
+            tail.X += Math.Sign(h);
         }
         else if (Math.Abs(v) > 1)
         {
-            tail.Y += v / Math.Abs(v);
+            tail.Y += Math.Sign(v);
         }
 
         positions.Add((tail.X, tail.Y));

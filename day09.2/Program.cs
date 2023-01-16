@@ -35,20 +35,20 @@ foreach (var line in input)
             var v = knots[t - 1].Y - knots[t].Y;
             if (Math.Abs(h) > 0 && Math.Abs(v) > 0 && Math.Abs(h) + Math.Abs(v) >= 3)
             {
-                knots[t].X += h / Math.Abs(h);
-                knots[t].Y += v / Math.Abs(v);
+                knots[t].X += Math.Sign(h);
+                knots[t].Y += Math.Sign(v);
             }
             else if (Math.Abs(h) > 1)
             {
-                knots[t].X += h / Math.Abs(h);
+                knots[t].X += Math.Sign(h);
             }
             else if (Math.Abs(v) > 1)
             {
-                knots[t].Y += v / Math.Abs(v);
+                knots[t].Y += Math.Sign(v);
             }
         }
 
-        positions.Add((knots[9].X, knots[9].Y));
+        positions.Add((knots[^1].X, knots[^1].Y));
     }
 }
 
